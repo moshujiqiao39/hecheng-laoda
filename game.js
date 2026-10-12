@@ -39,6 +39,7 @@
   const ctx = canvas.getContext("2d");
   const textures = [];
   const images = { normal: null, max: null };
+  const sounds = { man: null, max: null };
 
   let engine;
   let runner;
@@ -200,19 +201,48 @@
     }, 1800);
   }
 
-  function popSound(level) {
+  function audioCtx() {
+    if (!audioCtx.current) {
+      audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioCtx.current;
+  }
+
+  function unlockAudio() {
+    const ctx = audioCtx();
+    if (ctx.state === "suspended") ctx.resume();
+  }
+
+  async function loadSound(src) {
+    const response = await fetch(src);
+    if (!response.ok) throw new Error("无法加载 " + src);
+    const data = await response.arrayBuffer();
+    return audioCtx().decodeAudioData(data.slice(0));
+  }
+
+  function playBuffer(buffer, rate, volume) {
+    if (!buffer) return;
+    const ctx = audioCtx();
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    source.playbackRate.value = rate;
+    gain.gain.value = volume;
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+  }
+
+  function playMergeSound(level) {
     try {
-      const ac = popSound.ctx || (popSound.ctx = new AudioContext());
-      const osc = ac.createOscillator();
-      const gain = ac.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = 220 + level * 40;
-      gain.gain.setValueAtTime(0.08, ac.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
-      osc.connect(gain);
-      gain.connect(ac.destination);
-      osc.start();
-      osc.stop(ac.currentTime + 0.2);
+      unlockAudio();
+      if (level === MAX_LEVEL) {
+        playBuffer(sounds.max, 1, 1);
+        return;
+      }
+      const steps = Math.max(1, MAX_LEVEL - 1);
+      const t = (level - 1) / (steps - 1);
+      playBuffer(sounds.man, 0.72 + t * 0.7, 0.42 + t * 0.58);
     } catch (_) {
       /* ignore audio errors */
     }
@@ -236,7 +266,7 @@
     const next = spawnFruit(level, x, y);
     Body.setVelocity(next, { x: vx * 0.3, y: vy * 0.3 });
     addScore(LEVELS[level].score);
-    popSound(level);
+    playMergeSound(level);
     if (level === MAX_LEVEL && !madeMax) {
       madeMax = true;
       showToast("曼！合成出直升机牢大");
@@ -250,6 +280,7 @@
 
   function dropFruit() {
     if (!playing || gameOver || !canDrop) return;
+    unlockAudio();
     const x = clampPreview(nextLevel, previewX);
     spawnFruit(nextLevel, x, DROP_Y);
     nextLevel = randDropLevel();
@@ -456,7 +487,10 @@
         dropFruit();
       }
     });
-    startBtn.addEventListener("click", resetGame);
+    startBtn.addEventListener("click", () => {
+      unlockAudio();
+      resetGame();
+    });
     window.addEventListener("resize", syncCanvasSize);
   }
 
@@ -464,6 +498,8 @@
     buildLegend();
     images.normal = await loadImage("assets/normal.jpg");
     images.max = await loadImage("assets/max.jpg");
+    sounds.man = await loadSound("assets/man.mp3");
+    sounds.max = await loadSound("assets/what-can-i-say.mp3");
     for (let i = 0; i < LEVELS.length; i += 1) {
       textures[i] = makeTexture(
         i === MAX_LEVEL ? images.max : images.normal,
