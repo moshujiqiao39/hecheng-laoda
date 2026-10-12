@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>合成牢大</title>
+    <meta name="description" content="合成大西瓜玩法，十级牢大，最大一级变成直升机牢大" />
+    <link rel="icon" href="assets/normal.jpg" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div>
+          <h1>合成牢大</h1>
+          <p>相同牢大相撞就会合成 · 合成出直升机</p>
+        </div>
+        <div class="scores">
+          <div class="score-card">
+            <span>分数</span>
+            <strong id="score">0</strong>
+          </div>
+          <div class="score-card">
+            <span>最高</span>
+            <strong id="best">0</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="stage">
+        <aside class="panel next-panel">
+          <span>下一个</span>
+          <div class="next-wrap">
+            <img id="next-img" alt="下一个牢大" />
+            <i id="next-ring"></i>
+          </div>
+        </aside>
+
+        <div class="board">
+          <canvas id="game"></canvas>
+          <div class="dead-label">危险线</div>
+        </div>
+
+        <aside class="panel legend-panel">
+          <span>十级图鉴</span>
+          <ol id="legend"></ol>
+        </aside>
+      </section>
+
+      <p class="hint">移动瞄准，点击或松开即可放下。两个相同的碰到一起会合成更大一级。</p>
+    </div>
+
+    <div id="overlay" class="overlay">
+      <div class="modal">
+        <h2 id="overlay-title">合成牢大</h2>
+        <p id="overlay-text">把十级牢大一路合成上去，最大一级会变成直升机牢大。</p>
+        <p class="modal-score">本局 <strong id="overlay-score">0</strong></p>
+        <button id="start-btn" type="button">开始掉落</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="vendor/matter.min.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
