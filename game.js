@@ -146,7 +146,7 @@
   }
 
   function addWalls() {
-    const opts = { isStatic: true, label: "wall", friction: 0.28, restitution: 0.42 };
+    const opts = { isStatic: true, label: "wall", friction: 0.12, restitution: 0.68 };
     World.add(engine.world, [
       Bodies.rectangle(WORLD_W / 2, WORLD_H + 40, WORLD_W, 100, opts),
       Bodies.rectangle(-40, WORLD_H / 2, 100, WORLD_H * 2, opts),
@@ -157,10 +157,10 @@
   function spawnFruit(level, x, y, options = {}) {
     const info = LEVELS[level];
     const body = Bodies.circle(x, y, info.r, {
-      restitution: 0.52,
-      friction: 0.1,
-      frictionAir: 0.004,
-      density: 0.0022,
+      restitution: 0.76,
+      friction: 0.04,
+      frictionAir: 0.001,
+      density: 0.0026,
       label: "fruit",
       slop: 0.05,
     });
@@ -257,7 +257,7 @@
     updateNext();
     setTimeout(() => {
       if (playing && !gameOver) canDrop = true;
-    }, 280);
+    }, 160);
   }
 
   function updateNext() {
@@ -282,7 +282,7 @@
   function resetGame() {
     if (runner) Runner.stop(runner);
     if (engine) World.clear(engine.world, false);
-    engine = Engine.create({ gravity: { x: 0, y: 2.05 } });
+    engine = Engine.create({ gravity: { x: 0, y: 3.15 } });
     runner = Runner.create();
     fruits = [];
     merging.clear();
