@@ -22,6 +22,7 @@
   const DROP_Y = 56;
   const DEAD_Y = 118;
   const BEST_KEY = "hecheng-laoda-best";
+  const MERGE_LOCK_MS = 70;
 
   const canvas = document.getElementById("game");
   const overlay = document.getElementById("overlay");
@@ -51,7 +52,6 @@
   let canDrop = false;
   let playing = false;
   let gameOver = false;
-  let merging = new Set();
   let dangerMs = 0;
   let madeMax = false;
   let pointerDown = false;
@@ -155,8 +155,22 @@
     ]);
   }
 
+  function isLiveFruit(body) {
+    return Boolean(
+      body &&
+        body.label === "fruit" &&
+        body.plugin &&
+        body.plugin.kind === "fruit" &&
+        !body.plugin.consumed &&
+        Number.isInteger(body.plugin.level) &&
+        body.plugin.level >= 0 &&
+        body.plugin.level <= MAX_LEVEL
+    );
+  }
+
   function spawnFruit(level, x, y, options = {}) {
-    const info = LEVELS[level];
+    const safeLevel = Math.max(0, Math.min(MAX_LEVEL, level));
+    const info = LEVELS[safeLevel];
     const body = Bodies.circle(x, y, info.r, {
       restitution: 0.76,
       friction: 0.04,
@@ -167,8 +181,9 @@
     });
     body.plugin = {
       kind: "fruit",
-      level,
+      level: safeLevel,
       born: performance.now(),
+      consumed: false,
     };
     if (options.static) Body.setStatic(body, true);
     World.add(engine.world, body);
@@ -177,9 +192,13 @@
   }
 
   function removeFruit(body) {
+    if (!body || (body.plugin && body.plugin.removed)) return;
+    if (body.plugin) {
+      body.plugin.consumed = true;
+      body.plugin.removed = true;
+    }
     fruits = fruits.filter((item) => item !== body);
-    Composite.remove(engine.world, body);
-    merging.delete(body);
+    if (engine && engine.world) Composite.remove(engine.world, body);
   }
 
   function addScore(value) {
@@ -249,14 +268,18 @@
   }
 
   function mergePair(a, b) {
-    if (!a.plugin || !b.plugin) return;
+    if (!isLiveFruit(a) || !isLiveFruit(b) || a === b) return;
     if (a.plugin.level !== b.plugin.level) return;
     if (a.plugin.level >= MAX_LEVEL) return;
-    if (merging.has(a) || merging.has(b)) return;
+    const now = performance.now();
+    if (now - a.plugin.born < MERGE_LOCK_MS || now - b.plugin.born < MERGE_LOCK_MS) return;
 
-    merging.add(a);
-    merging.add(b);
-    const level = a.plugin.level + 1;
+    // A body may hit several same-level fruits in one physics step.
+    // Mark both consumed first so they cannot spawn extra upgrades.
+    a.plugin.consumed = true;
+    b.plugin.consumed = true;
+
+    const level = Math.min(MAX_LEVEL, a.plugin.level + 1);
     const x = (a.position.x + b.position.x) / 2;
     const y = (a.position.y + b.position.y) / 2;
     const vx = (a.velocity.x + b.velocity.x) / 2;
@@ -316,7 +339,6 @@
     engine = Engine.create({ gravity: { x: 0, y: 3.15 } });
     runner = Runner.create();
     fruits = [];
-    merging.clear();
     score = 0;
     scoreEl.textContent = "0";
     nextLevel = randDropLevel();
@@ -328,11 +350,10 @@
     madeMax = false;
     addWalls();
     Events.on(engine, "collisionStart", (event) => {
-      for (const pair of event.pairs) {
-        const a = pair.bodyA;
-        const b = pair.bodyB;
-        if (a.label === "fruit" && b.label === "fruit") mergePair(a, b);
-      }
+      for (const pair of event.pairs) mergePair(pair.bodyA, pair.bodyB);
+    });
+    Events.on(engine, "collisionActive", (event) => {
+      for (const pair of event.pairs) mergePair(pair.bodyA, pair.bodyB);
     });
     Runner.run(runner, engine);
     updateNext();
@@ -361,6 +382,7 @@
     let risky = false;
     const now = performance.now();
     for (const body of fruits) {
+      if (!isLiveFruit(body)) continue;
       if (now - body.plugin.born < 900) continue;
       const speed = Math.hypot(body.velocity.x, body.velocity.y);
       if (body.position.y - LEVELS[body.plugin.level].r < DEAD_Y && speed < 0.35) {
@@ -409,6 +431,7 @@
   }
 
   function drawFruit(body, sx, sy) {
+    if (!isLiveFruit(body)) return;
     const level = body.plugin.level;
     const info = LEVELS[level];
     const x = body.position.x * sx;
